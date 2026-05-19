@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 
 const BACKEND = "http://localhost:8000";
 
 function App() {
   const { user } = useUser();
-  const { getToken } = useAuth();
+  // const { getToken } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
