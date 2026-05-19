@@ -41,7 +41,7 @@ conn.commit()
 # =====================
 API_KEY = "d21a6f21367e966a41c225bac07eb9f4"
 API_URL = "https://api.nanobananaapi.ai/api/v1/nanobanana/generate"
-CALLBACK_URL = "https://你的Render地址/callback"  # 部署后改成 Render 地址
+CALLBACK_URL = "https://genpic-pgye.onrender.com/callback"
 
 # =====================
 # 用户初始化
