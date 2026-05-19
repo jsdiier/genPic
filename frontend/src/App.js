@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 
-const BACKEND = "http://localhost:8000";
+const BACKEND = "https://genpic-pgye.onrender.com";
 
 function App() {
   const { user } = useUser();
