@@ -176,7 +176,7 @@ class RechargeRequest(BaseModel):
 
 @app.post("/admin/recharge")
 def recharge(body: RechargeRequest):
-    if body.admin_key != "你的管理员密码":
+    if body.admin_key != "760828":
         raise HTTPException(status_code=403, detail="无权限")
     conn.execute(
         "UPDATE users SET balance=balance+? WHERE clerk_user_id=?",
