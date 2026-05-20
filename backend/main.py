@@ -179,6 +179,7 @@ async def img2img(
     oss_key = f"uploads/{uuid.uuid4()}.{file_ext}"
     bucket.put_object(oss_key, file_content)
     image_url = f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}"
+    print(f"OSS URL: {image_url}")
 
     # 提交给 Nano
     headers = {
