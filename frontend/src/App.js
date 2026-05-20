@@ -13,12 +13,12 @@ function App() {
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sessions, setSessions] = useState([
-    { id: 1, title: "新对话", active: true }
-  ]);
+  const [sessions, setSessions] = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
+  // 用户登录后初始化
   useEffect(() => {
     if (user) {
       fetch(`${BACKEND}/init_user`, {
@@ -28,12 +28,47 @@ function App() {
       })
       .then(res => res.json())
       .then(data => setBalance(data.balance));
+
+      // 加载历史 sessions
+      loadSessions();
     }
   }, [user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [results]);
+
+  // 加载所有 sessions
+  const loadSessions = async () => {
+    if (!user) return;
+    const res = await fetch(`${BACKEND}/sessions/${user.id}`);
+    const data = await res.json();
+    setSessions(data.sessions);
+  };
+
+  // 加载某个 session 的消息
+  const loadSession = async (sessionId) => {
+    setCurrentSessionId(sessionId);
+    const res = await fetch(`${BACKEND}/messages/${sessionId}`);
+    const data = await res.json();
+    const items = data.messages.map(m => ({
+      type: m.type,
+      ...(m.type === "prompt" ? { text: m.content } : {}),
+      ...(m.type === "image" ? { url: m.content } : {}),
+      ...(m.type === "error" ? { text: m.content } : {}),
+    }));
+    setResults(items);
+  };
+
+  // 新建 session
+  const newSession = async () => {
+    setCurrentSessionId(null);
+    setResults([]);
+    setPrompt("");
+    setUploadedFiles([]);
+    setPreviewUrls([]);
+    setSessions(prev => prev.map(s => ({ ...s, active: false })));
+  };
 
   const addFiles = (newFiles) => {
     const filtered = Array.from(newFiles)
@@ -59,18 +94,7 @@ function App() {
     const imageItems = items
       .filter(item => item.type.startsWith("image/"))
       .map(item => item.getAsFile());
-    if (imageItems.length > 0) {
-      addFiles(imageItems);
-    }
-  };
-
-  const newSession = () => {
-    const id = Date.now();
-    setSessions(prev => [...prev.map(s => ({ ...s, active: false })), { id, title: "新对话", active: true }]);
-    setResults([]);
-    setPrompt("");
-    setUploadedFiles([]);
-    setPreviewUrls([]);
+    if (imageItems.length > 0) addFiles(imageItems);
   };
 
   const handleSubmit = async () => {
@@ -80,18 +104,41 @@ function App() {
       return;
     }
 
-    setSessions(prev => prev.map(s =>
-      s.active ? { ...s, title: prompt.slice(0, 15) + (prompt.length > 15 ? "..." : "") } : s
-    ));
-
     setLoading(true);
-    setResults(prev => [...prev, { type: "prompt", text: prompt, images: [...previewUrls] }]);
 
     const currentPrompt = prompt;
     const currentFiles = [...uploadedFiles];
+    const currentPreviews = [...previewUrls];
+
     setPrompt("");
     setUploadedFiles([]);
     setPreviewUrls([]);
+
+    // 如果没有 session，先创建一个
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      const res = await fetch(`${BACKEND}/sessions/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clerk_user_id: user.id,
+          title: currentPrompt.slice(0, 15) + (currentPrompt.length > 15 ? "..." : "")
+        })
+      });
+      const data = await res.json();
+      sessionId = data.session_id;
+      setCurrentSessionId(sessionId);
+      await loadSessions();
+    }
+
+    // 保存 prompt 到数据库
+    await fetch(`${BACKEND}/messages/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, type: "prompt", content: currentPrompt })
+    });
+
+    setResults(prev => [...prev, { type: "prompt", text: currentPrompt, images: currentPreviews }]);
 
     let res;
     try {
@@ -123,6 +170,12 @@ function App() {
         const r = await fetch(`${BACKEND}/result/${taskId}`);
         const d = await r.json();
         if (d.status === "done") {
+          // 保存图片到数据库
+          await fetch(`${BACKEND}/messages/save`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sessionId, type: "image", content: d.image_url })
+          });
           setResults(prev => prev.map(item =>
             item.taskId === taskId ? { type: "image", url: d.image_url } : item
           ));
@@ -190,14 +243,14 @@ function App() {
             <div style={{ flex: 1, overflowY: "auto", padding: "0 8px" }}>
               {sessions.map(session => (
                 <div
-                  key={session.id}
-                  onClick={() => setSessions(prev => prev.map(s => ({ ...s, active: s.id === session.id })))}
+                  key={session.session_id}
+                  onClick={() => loadSession(session.session_id)}
                   style={{
                     padding: "10px 12px",
                     borderRadius: 8,
                     cursor: "pointer",
-                    color: session.active ? "white" : "#999",
-                    background: session.active ? "#333" : "transparent",
+                    color: currentSessionId === session.session_id ? "white" : "#999",
+                    background: currentSessionId === session.session_id ? "#333" : "transparent",
                     fontSize: 13,
                     marginBottom: 2
                   }}
@@ -229,7 +282,7 @@ function App() {
               </button>
             )}
             <span style={{ fontWeight: 600, fontSize: 15, color: "#333" }}>
-              {sessions.find(s => s.active)?.title || "新对话"}
+              {sessions.find(s => s.session_id === currentSessionId)?.title || "新对话"}
             </span>
           </div>
 
