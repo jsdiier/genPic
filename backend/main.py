@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
 import requests
+import oss2
 import uuid
 
 app = FastAPI()
@@ -52,6 +53,11 @@ CALLBACK_URL = "https://genpic-pgye.onrender.com/callback"
 class UserInit(BaseModel):
     clerk_user_id: str
 
+class SetBalanceRequest(BaseModel):
+    clerk_user_id: str
+    amount: int
+    admin_key: str
+
 @app.post("/init_user")
 def init_user(body: UserInit):
     existing = conn.execute(
@@ -77,6 +83,19 @@ def get_balance(clerk_user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"balance": user["balance"]}
+
+
+
+@app.post("/admin/set_balance")
+def set_balance(body: SetBalanceRequest):
+    if body.admin_key != "760828":
+        raise HTTPException(status_code=403, detail="无权限")
+    conn.execute(
+        "UPDATE users SET balance=? WHERE clerk_user_id=?",
+        (body.amount, body.clerk_user_id)
+    )
+    conn.commit()
+    return {"msg": "设置成功"}
 
 # =====================
 # 提交文生图任务
@@ -118,6 +137,74 @@ def generate(body: GenerateRequest):
     conn.execute(
         "INSERT INTO tasks (task_id, clerk_user_id, prompt, status) VALUES (?, ?, ?, ?)",
         (task_id, body.clerk_user_id, body.prompt, "pending")
+    )
+    conn.commit()
+
+    return {"task_id": task_id}
+
+# =====================
+# 图生图接口
+# =====================
+from fastapi import UploadFile, File, Form
+
+# =====================
+# OSS 配置
+# =====================
+import os
+
+OSS_ACCESS_KEY_ID = os.environ.get("OSS_ACCESS_KEY_ID")
+OSS_ACCESS_KEY_SECRET = os.environ.get("OSS_ACCESS_KEY_SECRET")
+OSS_BUCKET = "genpic-images"
+OSS_ENDPOINT = "oss-cn-shanghai.aliyuncs.com"
+
+auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
+bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
+
+@app.post("/img2img")
+async def img2img(
+    prompt: str = Form(...),
+    clerk_user_id: str = Form(...),
+    file: UploadFile = File(...)
+):
+    # 查余额
+    user = conn.execute(
+        "SELECT balance FROM users WHERE clerk_user_id=?", (clerk_user_id,)
+    ).fetchone()
+    if not user or user["balance"] < 1:
+        raise HTTPException(status_code=402, detail="余额不足，请充值")
+
+    # 上传图片到 OSS
+    file_content = await file.read()
+    file_ext = file.filename.split(".")[-1]
+    oss_key = f"uploads/{uuid.uuid4()}.{file_ext}"
+    bucket.put_object(oss_key, file_content)
+    image_url = f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}"
+
+    # 提交给 Nano
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "prompt": prompt,
+        "type": "IMAGETOIAMGE",
+        "numImages": 1,
+        "image_size": "1:1",
+        "callBackUrl": CALLBACK_URL,
+        "imageUrls": [image_url]
+    }
+    response = requests.post(API_URL, headers=headers, json=payload)
+    result = response.json()
+
+    if result["code"] != 200:
+        raise HTTPException(status_code=500, detail="Nano 平台提交失败")
+
+    task_id = result["data"]["taskId"]
+
+    # 存任务
+    conn.execute(
+        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status) VALUES (?, ?, ?, ?)",
+        (task_id, clerk_user_id, prompt, "pending")
     )
     conn.commit()
 
