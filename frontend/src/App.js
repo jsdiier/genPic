@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 
 const BACKEND = "https://genpic-pgye.onrender.com";
@@ -21,6 +21,13 @@ function App() {
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
+  const loadSessions = useCallback(async () => {
+    if (!user) return;
+    const res = await fetch(`${BACKEND}/sessions/${user.id}`);
+    const data = await res.json();
+    setSessions(data.sessions);
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetch(`${BACKEND}/init_user`, {
@@ -32,18 +39,11 @@ function App() {
       .then(data => setBalance(data.balance));
       loadSessions();
     }
-  }, [user, loadSessions]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, loadSessions]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [results]);
-
-  const loadSessions = async () => {
-    if (!user) return;
-    const res = await fetch(`${BACKEND}/sessions/${user.id}`);
-    const data = await res.json();
-    setSessions(data.sessions);
-  };
 
   const loadSession = async (sessionId) => {
     setCurrentSessionId(sessionId);
@@ -137,7 +137,6 @@ function App() {
     setUploadedFiles([]);
     setPreviewUrls([]);
 
-    // 没有 session 就创建，名字取前5个字
     let sessionId = currentSessionId;
     if (!sessionId) {
       const title = currentPrompt.slice(0, 5);
@@ -241,7 +240,6 @@ function App() {
       </SignedOut>
 
       <SignedIn>
-        {/* 左侧 Session 栏 */}
         {sidebarOpen && (
           <div style={{ width: 240, background: "#1a1a1a", display: "flex", flexDirection: "column", flexShrink: 0 }}>
             <div style={{ padding: "16px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -328,7 +326,6 @@ function App() {
           </div>
         )}
 
-        {/* 主内容区 */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", padding: "12px 20px", background: "white", borderBottom: "1px solid #eee" }}>
             {!sidebarOpen && (
@@ -394,7 +391,6 @@ function App() {
             <div ref={bottomRef} />
           </div>
 
-          {/* 底部输入区 */}
           <div style={{ padding: "12px 20%", background: "white", borderTop: "1px solid #eee" }}>
             <div
               style={{
