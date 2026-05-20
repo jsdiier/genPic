@@ -32,7 +32,7 @@ function App() {
       .then(data => setBalance(data.balance));
       loadSessions();
     }
-  }, [user]);
+  }, [user, loadSessions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
