@@ -38,6 +38,23 @@ conn.execute("""
         image_url TEXT
     )
 """)
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS sessions (
+        session_id TEXT PRIMARY KEY,
+        clerk_user_id TEXT,
+        title TEXT,
+        created_at TEXT
+    )
+""")
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        message_id TEXT PRIMARY KEY,
+        session_id TEXT,
+        type TEXT,
+        content TEXT,
+        created_at TEXT
+    )
+""")
 conn.commit()
 
 # =====================
@@ -275,3 +292,68 @@ def recharge(body: RechargeRequest):
     )
     conn.commit()
     return {"msg": "充值成功"}
+
+import datetime
+
+# =====================
+# Session 接口
+# =====================
+class CreateSessionRequest(BaseModel):
+    clerk_user_id: str
+    title: str
+
+@app.post("/sessions/create")
+def create_session(body: CreateSessionRequest):
+    session_id = str(uuid.uuid4())
+    created_at = datetime.datetime.now().isoformat()
+    conn.execute(
+        "INSERT INTO sessions (session_id, clerk_user_id, title, created_at) VALUES (?, ?, ?, ?)",
+        (session_id, body.clerk_user_id, body.title, created_at)
+    )
+    conn.commit()
+    return {"session_id": session_id}
+
+@app.get("/sessions/{clerk_user_id}")
+def get_sessions(clerk_user_id: str):
+    sessions = conn.execute(
+        "SELECT * FROM sessions WHERE clerk_user_id=? ORDER BY created_at DESC",
+        (clerk_user_id,)
+    ).fetchall()
+    return {"sessions": [dict(s) for s in sessions]}
+
+class SaveMessageRequest(BaseModel):
+    session_id: str
+    type: str
+    content: str
+
+@app.post("/messages/save")
+def save_message(body: SaveMessageRequest):
+    message_id = str(uuid.uuid4())
+    created_at = datetime.datetime.now().isoformat()
+    conn.execute(
+        "INSERT INTO messages (message_id, session_id, type, content, created_at) VALUES (?, ?, ?, ?, ?)",
+        (message_id, body.session_id, body.type, body.content, created_at)
+    )
+    conn.commit()
+    return {"message_id": message_id}
+
+@app.get("/messages/{session_id}")
+def get_messages(session_id: str):
+    messages = conn.execute(
+        "SELECT * FROM messages WHERE session_id=? ORDER BY created_at ASC",
+        (session_id,)
+    ).fetchall()
+    return {"messages": [dict(m) for m in messages]}
+
+class UpdateSessionTitleRequest(BaseModel):
+    session_id: str
+    title: str
+
+@app.put("/sessions/update_title")
+def update_session_title(body: UpdateSessionTitleRequest):
+    conn.execute(
+        "UPDATE sessions SET title=? WHERE session_id=?",
+        (body.title, body.session_id)
+    )
+    conn.commit()
+    return {"msg": "更新成功"}
