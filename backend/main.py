@@ -164,7 +164,7 @@ bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
 async def img2img(
     prompt: str = Form(...),
     clerk_user_id: str = Form(...),
-    file: UploadFile = File(...)
+    files: list[UploadFile] = File(...)
 ):
     # 查余额
     user = conn.execute(
@@ -173,13 +173,16 @@ async def img2img(
     if not user or user["balance"] < 1:
         raise HTTPException(status_code=402, detail="余额不足，请充值")
 
-    # 上传图片到 OSS
-    file_content = await file.read()
-    file_ext = file.filename.split(".")[-1]
-    oss_key = f"uploads/{uuid.uuid4()}.{file_ext}"
-    bucket.put_object(oss_key, file_content)
-    image_url = f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}"
-    print(f"OSS URL: {image_url}")
+    # 上传多张图片到 OSS
+    image_urls = []
+    for file in files:
+        file_content = await file.read()
+        file_ext = file.filename.split(".")[-1]
+        oss_key = f"uploads/{uuid.uuid4()}.{file_ext}"
+        bucket.put_object(oss_key, file_content)
+        image_url = f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}"
+        image_urls.append(image_url)
+        print(f"OSS URL: {image_url}")
 
     # 提交给 Nano
     headers = {
@@ -192,7 +195,7 @@ async def img2img(
         "numImages": 1,
         "image_size": "1:1",
         "callBackUrl": CALLBACK_URL,
-        "imageUrls": [image_url]
+        "imageUrls": image_urls
     }
     response = requests.post(API_URL, headers=headers, json=payload)
     result = response.json()

@@ -5,15 +5,15 @@ const BACKEND = "https://genpic-pgye.onrender.com";
 
 function App() {
   const { user } = useUser();
-  const [mode, setMode] = useState("text2img"); // text2img or img2img
+  const [mode, setMode] = useState("text2img");
   const [prompt, setPrompt] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [status, setStatus] = useState("");
   const [balance, setBalance] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
 
   // 用户登录后初始化
   useEffect(() => {
@@ -32,25 +32,30 @@ function App() {
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) {
-      setUploadedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+    const newFiles = Array.from(e.dataTransfer.files)
+      .filter(f => f.type.startsWith("image/"))
+      .slice(0, 4 - uploadedFiles.length);
+    setUploadedFiles(prev => [...prev, ...newFiles].slice(0, 4));
+    setPreviewUrls(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))].slice(0, 4));
   };
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setUploadedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+    const newFiles = Array.from(e.target.files)
+      .filter(f => f.type.startsWith("image/"))
+      .slice(0, 4 - uploadedFiles.length);
+    setUploadedFiles(prev => [...prev, ...newFiles].slice(0, 4));
+    setPreviewUrls(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))].slice(0, 4));
+  };
+
+  const removeImage = (index) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   // 提交任务
   const handleGenerate = async () => {
     if (!prompt) return;
-    if (mode === "img2img" && !uploadedFile) {
+    if (mode === "img2img" && uploadedFiles.length === 0) {
       setStatus("请先上传图片");
       return;
     }
@@ -70,7 +75,7 @@ function App() {
       const formData = new FormData();
       formData.append("prompt", prompt);
       formData.append("clerk_user_id", user.id);
-      formData.append("file", uploadedFile);
+      uploadedFiles.forEach(file => formData.append("files", file));
       res = await fetch(`${BACKEND}/img2img`, {
         method: "POST",
         body: formData
@@ -112,7 +117,7 @@ function App() {
 
         <SignedOut>
           <div style={{ textAlign: "center" }}>
-            <h2>AI 文生图</h2>
+            <h2>AI 绘图</h2>
             <p>请先登录后使用</p>
             <SignInButton mode="modal">
               <button style={{ padding: "10px 24px", fontSize: 16, background: "#4f8ef7", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}>
@@ -153,23 +158,40 @@ function App() {
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onClick={() => document.getElementById("fileInput").click()}
+              onClick={() => uploadedFiles.length < 4 && document.getElementById("fileInput").click()}
               style={{
                 border: `2px dashed ${dragOver ? "#4f8ef7" : "#ddd"}`,
                 borderRadius: 8,
-                padding: 30,
+                padding: 20,
                 textAlign: "center",
-                cursor: "pointer",
+                cursor: uploadedFiles.length < 4 ? "pointer" : "default",
                 marginBottom: 16,
                 background: dragOver ? "#f0f7ff" : "white"
               }}
             >
-              {previewUrl ? (
-                <img src={previewUrl} alt="预览" style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 6 }} />
+              {previewUrls.length > 0 ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                  {previewUrls.map((url, i) => (
+                    <div key={i} style={{ position: "relative" }}>
+                      <img src={url} alt={`预览${i+1}`} style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6 }} />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                        style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.5)", color: "white", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", fontSize: 12 }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {previewUrls.length < 4 && (
+                    <div style={{ width: 120, height: 120, border: "2px dashed #ddd", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 24 }}>
+                      +
+                    </div>
+                  )}
+                </div>
               ) : (
-                <p style={{ color: "#999", margin: 0 }}>拖拽图片到这里，或点击上传</p>
+                <p style={{ color: "#999", margin: 0 }}>拖拽最多4张图片，或点击上传</p>
               )}
-              <input id="fileInput" type="file" accept="image/*" onChange={handleFileSelect} style={{ display: "none" }} />
+              <input id="fileInput" type="file" accept="image/*" multiple onChange={handleFileSelect} style={{ display: "none" }} />
             </div>
           )}
 
