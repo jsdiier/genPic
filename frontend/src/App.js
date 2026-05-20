@@ -15,10 +15,12 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [hoveredSessionId, setHoveredSessionId] = useState(null);
+  const [renamingSessionId, setRenamingSessionId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
-  // 用户登录后初始化
   useEffect(() => {
     if (user) {
       fetch(`${BACKEND}/init_user`, {
@@ -28,8 +30,6 @@ function App() {
       })
       .then(res => res.json())
       .then(data => setBalance(data.balance));
-
-      // 加载历史 sessions
       loadSessions();
     }
   }, [user]);
@@ -38,7 +38,6 @@ function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [results]);
 
-  // 加载所有 sessions
   const loadSessions = async () => {
     if (!user) return;
     const res = await fetch(`${BACKEND}/sessions/${user.id}`);
@@ -46,7 +45,6 @@ function App() {
     setSessions(data.sessions);
   };
 
-  // 加载某个 session 的消息
   const loadSession = async (sessionId) => {
     setCurrentSessionId(sessionId);
     const res = await fetch(`${BACKEND}/messages/${sessionId}`);
@@ -60,14 +58,39 @@ function App() {
     setResults(items);
   };
 
-  // 新建 session
-  const newSession = async () => {
+  const newSession = () => {
     setCurrentSessionId(null);
     setResults([]);
     setPrompt("");
     setUploadedFiles([]);
     setPreviewUrls([]);
-    setSessions(prev => prev.map(s => ({ ...s, active: false })));
+  };
+
+  const deleteSession = async (e, sessionId) => {
+    e.stopPropagation();
+    await fetch(`${BACKEND}/sessions/${sessionId}`, { method: "DELETE" });
+    if (currentSessionId === sessionId) {
+      setCurrentSessionId(null);
+      setResults([]);
+    }
+    loadSessions();
+  };
+
+  const startRename = (e, session) => {
+    e.stopPropagation();
+    setRenamingSessionId(session.session_id);
+    setRenameValue(session.title);
+  };
+
+  const submitRename = async (sessionId) => {
+    if (!renameValue.trim()) return;
+    await fetch(`${BACKEND}/sessions/update_title`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, title: renameValue.trim() })
+    });
+    setRenamingSessionId(null);
+    loadSessions();
   };
 
   const addFiles = (newFiles) => {
@@ -114,16 +137,14 @@ function App() {
     setUploadedFiles([]);
     setPreviewUrls([]);
 
-    // 如果没有 session，先创建一个
+    // 没有 session 就创建，名字取前5个字
     let sessionId = currentSessionId;
     if (!sessionId) {
+      const title = currentPrompt.slice(0, 5);
       const res = await fetch(`${BACKEND}/sessions/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clerk_user_id: user.id,
-          title: currentPrompt.slice(0, 15) + (currentPrompt.length > 15 ? "..." : "")
-        })
+        body: JSON.stringify({ clerk_user_id: user.id, title })
       });
       const data = await res.json();
       sessionId = data.session_id;
@@ -131,7 +152,6 @@ function App() {
       await loadSessions();
     }
 
-    // 保存 prompt 到数据库
     await fetch(`${BACKEND}/messages/save`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -170,7 +190,6 @@ function App() {
         const r = await fetch(`${BACKEND}/result/${taskId}`);
         const d = await r.json();
         if (d.status === "done") {
-          // 保存图片到数据库
           await fetch(`${BACKEND}/messages/save`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -245,6 +264,8 @@ function App() {
                 <div
                   key={session.session_id}
                   onClick={() => loadSession(session.session_id)}
+                  onMouseEnter={() => setHoveredSessionId(session.session_id)}
+                  onMouseLeave={() => setHoveredSessionId(null)}
                   style={{
                     padding: "10px 12px",
                     borderRadius: 8,
@@ -252,10 +273,47 @@ function App() {
                     color: currentSessionId === session.session_id ? "white" : "#999",
                     background: currentSessionId === session.session_id ? "#333" : "transparent",
                     fontSize: 13,
-                    marginBottom: 2
+                    marginBottom: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between"
                   }}
                 >
-                  {session.title}
+                  {renamingSessionId === session.session_id ? (
+                    <input
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onBlur={() => submitRename(session.session_id)}
+                      onKeyDown={e => { if (e.key === "Enter") submitRename(session.session_id); if (e.key === "Escape") setRenamingSessionId(null); }}
+                      onClick={e => e.stopPropagation()}
+                      autoFocus
+                      style={{ background: "#444", border: "none", color: "white", borderRadius: 4, padding: "2px 6px", fontSize: 13, width: "100%" }}
+                    />
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {session.title}
+                      </span>
+                      {hoveredSessionId === session.session_id && (
+                        <div style={{ display: "flex", gap: 4, marginLeft: 4 }}>
+                          <button
+                            onClick={e => startRename(e, session)}
+                            style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", fontSize: 12, padding: "2px 4px" }}
+                            title="重命名"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={e => deleteSession(e, session.session_id)}
+                            style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", fontSize: 12, padding: "2px 4px" }}
+                            title="删除"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               ))}
             </div>

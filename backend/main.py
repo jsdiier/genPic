@@ -357,3 +357,10 @@ def update_session_title(body: UpdateSessionTitleRequest):
     )
     conn.commit()
     return {"msg": "更新成功"}
+
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: str):
+    conn.execute("DELETE FROM sessions WHERE session_id=?", (session_id,))
+    conn.execute("DELETE FROM messages WHERE session_id=?", (session_id,))
+    conn.commit()
+    return {"msg": "删除成功"}
