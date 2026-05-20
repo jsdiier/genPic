@@ -157,7 +157,7 @@ def generate(body: GenerateRequest):
     )
     conn.commit()
 
-    return {"task_id": task_id, "image_urls": image_urls}
+    return {"task_id": task_id}
 
 # =====================
 # 图生图接口
