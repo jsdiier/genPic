@@ -157,7 +157,7 @@ def generate(body: GenerateRequest):
     )
     conn.commit()
 
-    return {"task_id": task_id}
+    return {"task_id": task_id, "image_urls": image_urls}
 
 # =====================
 # 图生图接口
@@ -229,7 +229,7 @@ async def img2img(
     )
     conn.commit()
 
-    return {"task_id": task_id}
+    return {"task_id": task_id, "image_urls": image_urls}
 
 # =====================
 # Nano 回调

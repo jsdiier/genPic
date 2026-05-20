@@ -54,6 +54,7 @@ function App() {
       ...(m.type === "prompt" ? { text: m.content } : {}),
       ...(m.type === "image" ? { url: m.content } : {}),
       ...(m.type === "error" ? { text: m.content } : {}),
+      ...(m.type === "input_images" ? { images: JSON.parse(m.content) } : {}),
     }));
     setResults(items);
   };
@@ -183,6 +184,21 @@ function App() {
 
       const data = await res.json();
       const taskId = data.task_id;
+      const ossImageUrls = data.image_urls || [];
+
+      // 如果是图生图，保存输入图片到数据库
+      if (ossImageUrls.length > 0) {
+        await fetch(`${BACKEND}/messages/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: sessionId,
+            type: "input_images",
+            content: JSON.stringify(ossImageUrls)
+          })
+        });
+      }
+
       setResults(prev => [...prev, { type: "loading", taskId }]);
 
       const timer = setInterval(async () => {
@@ -361,6 +377,18 @@ function App() {
                         </div>
                       )}
                       <p style={{ margin: 0, fontSize: 14 }}>{item.text}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {item.type === "input_images" && (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ background: "#4f8ef7", padding: "10px 16px", borderRadius: 12, maxWidth: "70%" }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {item.images.map((url, j) => (
+                          <img key={j} src={url} alt="" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6 }} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
