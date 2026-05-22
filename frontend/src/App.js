@@ -20,6 +20,7 @@ function App() {
   const [renameValue, setRenameValue] = useState("");
   const [aspectRatio, setAspectRatio] = useState("auto");
   const [resolution, setResolution] = useState("1K");
+  const [model, setModel] = useState("nano");
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -173,9 +174,11 @@ function App() {
         formData.append("aspect_ratio", aspectRatio);
         formData.append("resolution", resolution);
         currentFiles.forEach(file => formData.append("files", file));
-        res = await fetch(`${BACKEND}/img2img`, { method: "POST", body: formData });
+        const endpoint = model === "gpt" ? `${BACKEND}/gpt/img2img` : `${BACKEND}/img2img`;
+        res = await fetch(endpoint, { method: "POST", body: formData });
       } else {
-        res = await fetch(`${BACKEND}/generate`, {
+        const endpoint = model === "gpt" ? `${BACKEND}/gpt/generate` : `${BACKEND}/generate`;
+        res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ clerk_user_id: user.id, prompt: currentPrompt, aspect_ratio: aspectRatio, resolution: resolution })
@@ -191,6 +194,19 @@ function App() {
       const data = await res.json();
       const taskId = data.task_id;
       const ossImageUrls = data.image_urls || [];
+
+      // GPT 同步返回，直接显示图片
+      if (model === "gpt" && data.image_url) {
+        await fetch(`${BACKEND}/messages/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, type: "image", content: data.image_url })
+        });
+        setResults(prev => [...prev, { type: "image", url: data.image_url }]);
+        setBalance(b => b - 1);
+        setLoading(false);
+        return;
+      }
 
       // 如果是图生图，保存输入图片到数据库
       if (ossImageUrls.length > 0) {
@@ -507,9 +523,14 @@ function App() {
                     <option value="2K">2K</option>
                     <option value="4K">4K</option>
                   </select>
-                  <span style={{ fontSize: 12, color: "#999", padding: "4px 8px", background: "#f5f5f5", borderRadius: 6 }}>
-                    NanoBanana 2
-                  </span>
+                  <select
+                    value={model}
+                    onChange={e => setModel(e.target.value)}
+                    style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#666", cursor: "pointer" }}
+                  >
+                    <option value="nano">NanoBanana 2</option>
+                    <option value="gpt">GPT Image 2</option>
+                  </select>
                 </div>
                 <button
                   onClick={handleSubmit}
