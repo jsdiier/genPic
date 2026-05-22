@@ -18,6 +18,8 @@ function App() {
   const [hoveredSessionId, setHoveredSessionId] = useState(null);
   const [renamingSessionId, setRenamingSessionId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
+  const [aspectRatio, setAspectRatio] = useState("auto");
+  const [resolution, setResolution] = useState("1K");
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -166,13 +168,15 @@ function App() {
         const formData = new FormData();
         formData.append("prompt", currentPrompt);
         formData.append("clerk_user_id", user.id);
+        formData.append("aspect_ratio", aspectRatio);
+        formData.append("resolution", resolution);
         currentFiles.forEach(file => formData.append("files", file));
         res = await fetch(`${BACKEND}/img2img`, { method: "POST", body: formData });
       } else {
         res = await fetch(`${BACKEND}/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clerk_user_id: user.id, prompt: currentPrompt })
+          body: JSON.stringify({ clerk_user_id: user.id, prompt: currentPrompt, aspect_ratio: aspectRatio, resolution: resolution })
         });
       }
 
@@ -469,13 +473,42 @@ function App() {
               />
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: 20, padding: 4 }}
-                  title="上传图片（最多4张）"
-                >
-                  📎
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: 20, padding: 4 }}
+                    title="上传图片（最多4张）"
+                  >
+                    📎
+                  </button>
+                  <select
+                    value={aspectRatio}
+                    onChange={e => setAspectRatio(e.target.value)}
+                    style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#666", cursor: "pointer" }}
+                  >
+                    <option value="auto">自动</option>
+                    <option value="1:1">1:1</option>
+                    <option value="16:9">16:9</option>
+                    <option value="9:16">9:16</option>
+                    <option value="4:3">4:3</option>
+                    <option value="3:4">3:4</option>
+                    <option value="3:2">3:2</option>
+                    <option value="2:3">2:3</option>
+                    <option value="21:9">21:9</option>
+                  </select>
+                  <select
+                    value={resolution}
+                    onChange={e => setResolution(e.target.value)}
+                    style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#666", cursor: "pointer" }}
+                  >
+                    <option value="1K">1K</option>
+                    <option value="2K">2K</option>
+                    <option value="4K">4K</option>
+                  </select>
+                  <span style={{ fontSize: 12, color: "#999", padding: "4px 8px", background: "#f5f5f5", borderRadius: 6 }}>
+                    NanoBanana 2
+                  </span>
+                </div>
                 <button
                   onClick={handleSubmit}
                   disabled={!prompt.trim() || loading}
