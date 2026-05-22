@@ -60,9 +60,13 @@ conn.commit()
 # =====================
 # 配置
 # =====================
-API_KEY = "d21a6f21367e966a41c225bac07eb9f4"
+API_KEY = os.environ.get("NANO_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 API_URL = "https://api.nanobananaapi.ai/api/v1/nanobanana/generate-2"
 CALLBACK_URL = "https://genpic-pgye.onrender.com/callback"
+
+
+
 
 # =====================
 # 用户初始化
@@ -162,6 +166,74 @@ def generate(body: GenerateRequest):
 
     return {"task_id": task_id}
 
+
+class GPTGenerateRequest(BaseModel):
+    clerk_user_id: str
+    prompt: str
+    size: str = "1024x1024"
+    quality: str = "medium"
+
+@app.post("/gpt/generate")
+def gpt_generate_api(body: GPTGenerateRequest):
+    user = conn.execute(
+        "SELECT balance FROM users WHERE clerk_user_id=?", (body.clerk_user_id,)
+    ).fetchone()
+    if not user or user["balance"] < 1:
+        raise HTTPException(status_code=402, detail="余额不足，请充值")
+
+    image_url = gpt_generate(body.prompt, body.size, body.quality)
+
+    task_id = str(uuid.uuid4())
+    conn.execute(
+        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status, image_url) VALUES (?, ?, ?, ?, ?)",
+        (task_id, body.clerk_user_id, body.prompt, "done", image_url)
+    )
+    conn.execute(
+        "UPDATE users SET balance=balance-1 WHERE clerk_user_id=?",
+        (body.clerk_user_id,)
+    )
+    conn.commit()
+
+    return {"task_id": task_id, "image_url": image_url}
+
+@app.post("/gpt/img2img")
+async def gpt_img2img_api(
+    prompt: str = Form(...),
+    clerk_user_id: str = Form(...),
+    size: str = Form("1024x1024"),
+    quality: str = Form("medium"),
+    files: list[UploadFile] = File(...)
+):
+    user = conn.execute(
+        "SELECT balance FROM users WHERE clerk_user_id=?", (clerk_user_id,)
+    ).fetchone()
+    if not user or user["balance"] < 1:
+        raise HTTPException(status_code=402, detail="余额不足，请充值")
+
+    # 先上传到 OSS 拿到 URL
+    image_urls = []
+    for file in files:
+        file_content = await file.read()
+        file_ext = file.filename.split(".")[-1]
+        oss_key = f"uploads/{uuid.uuid4()}.{file_ext}"
+        bucket.put_object(oss_key, file_content)
+        image_urls.append(f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}")
+
+    image_url = gpt_img2img(prompt, image_urls, size, quality)
+
+    task_id = str(uuid.uuid4())
+    conn.execute(
+        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status, image_url) VALUES (?, ?, ?, ?, ?)",
+        (task_id, clerk_user_id, prompt, "done", image_url)
+    )
+    conn.execute(
+        "UPDATE users SET balance=balance-1 WHERE clerk_user_id=?",
+        (clerk_user_id,)
+    )
+    conn.commit()
+
+    return {"task_id": task_id, "image_url": image_url, "image_urls": image_urls}
+
 # =====================
 # 图生图接口
 # =====================
@@ -179,6 +251,43 @@ OSS_ENDPOINT = "oss-cn-shanghai.aliyuncs.com"
 
 auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
 bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
+
+import openai
+import io
+
+def gpt_generate(prompt: str, size: str = "1024x1024", quality: str = "medium") -> str:
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    result = client.images.generate(
+        model="gpt-image-2",
+        prompt=prompt,
+        size=size,
+        quality=quality,
+        response_format="b64_json"
+    )
+    import base64
+    image_bytes = base64.b64decode(result.data[0].b64_json)
+    oss_key = f"gpt/{uuid.uuid4()}.jpg"
+    bucket.put_object(oss_key, image_bytes)
+    return f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}"
+
+def gpt_img2img(prompt: str, image_urls: list, size: str = "1024x1024", quality: str = "medium") -> str:
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    image_files = []
+    for url in image_urls:
+        resp = requests.get(url)
+        image_files.append(io.BytesIO(resp.content))
+    result = client.images.edit(
+        model="gpt-image-2",
+        image=image_files,
+        prompt=prompt,
+        size=size,
+        quality=quality
+    )
+    import base64
+    image_bytes = base64.b64decode(result.data[0].b64_json)
+    oss_key = f"gpt/{uuid.uuid4()}.jpg"
+    bucket.put_object(oss_key, image_bytes)
+    return f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}"
 
 @app.post("/img2img")
 async def img2img(

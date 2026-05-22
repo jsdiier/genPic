@@ -3,3 +3,4 @@ uvicorn
 requests
 oss2
 python-multipart
+openai
