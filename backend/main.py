@@ -61,7 +61,7 @@ conn.commit()
 # 配置
 # =====================
 API_KEY = "d21a6f21367e966a41c225bac07eb9f4"
-API_URL = "https://api.nanobananaapi.ai/api/v1/nanobanana/generate"
+API_URL = "https://api.nanobananaapi.ai/api/v1/nanobanana/generate-2"
 CALLBACK_URL = "https://genpic-pgye.onrender.com/callback"
 
 # =====================
@@ -120,6 +120,8 @@ def set_balance(body: SetBalanceRequest):
 class GenerateRequest(BaseModel):
     clerk_user_id: str
     prompt: str
+    aspect_ratio: str = "auto"
+    resolution: str = "1K"
 
 @app.post("/generate")
 def generate(body: GenerateRequest):
@@ -137,9 +139,10 @@ def generate(body: GenerateRequest):
     }
     payload = {
         "prompt": body.prompt,
-        "type": "TEXTTOIAMGE",
-        "numImages": 1,
-        "image_size": "1:1",
+        "imageUrls": [],
+        "aspectRatio": body.aspect_ratio,
+        "resolution": body.resolution,
+        "outputFormat": "jpg",
         "callBackUrl": CALLBACK_URL
     }
     response = requests.post(API_URL, headers=headers, json=payload)
@@ -181,6 +184,8 @@ bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
 async def img2img(
     prompt: str = Form(...),
     clerk_user_id: str = Form(...),
+    aspect_ratio: str = Form("auto"),
+    resolution: str = Form("1K"),
     files: list[UploadFile] = File(...)
 ):
     # 查余额
@@ -208,11 +213,11 @@ async def img2img(
     }
     payload = {
         "prompt": prompt,
-        "type": "IMAGETOIAMGE",
-        "numImages": 1,
-        "image_size": "1:1",
-        "callBackUrl": CALLBACK_URL,
-        "imageUrls": image_urls
+        "imageUrls": image_urls,
+        "aspectRatio": aspect_ratio,
+        "resolution": resolution,
+        "outputFormat": "jpg",
+        "callBackUrl": CALLBACK_URL
     }
     response = requests.post(API_URL, headers=headers, json=payload)
     result = response.json()
