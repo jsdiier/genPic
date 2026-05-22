@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
@@ -280,10 +280,7 @@ async def gpt_img2img_api(
 
     return {"task_id": task_id, "image_urls": image_urls}
 
-# =====================
-# 图生图接口
-# =====================
-from fastapi import UploadFile, File, Form
+
 
 # =====================
 # OSS 配置
