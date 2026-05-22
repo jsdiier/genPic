@@ -5,6 +5,7 @@ import sqlite3
 import requests
 import oss2
 import uuid
+import os
 
 app = FastAPI()
 
