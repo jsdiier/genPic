@@ -318,7 +318,9 @@ def gpt_img2img(prompt: str, image_urls: list, size: str = "1024x1024", quality:
     image_files = []
     for url in image_urls:
         resp = requests.get(url)
-        image_files.append(io.BytesIO(resp.content))
+        buf = io.BytesIO(resp.content)
+        buf.name = "image.jpg"
+        image_files.append(buf)
     result = client.images.edit(
         model="gpt-image-2",
         image=image_files,
