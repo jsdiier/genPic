@@ -195,19 +195,6 @@ function App() {
       const taskId = data.task_id;
       const ossImageUrls = data.image_urls || [];
 
-      // GPT 同步返回，直接显示图片
-      if (model === "gpt" && data.image_url) {
-        await fetch(`${BACKEND}/messages/save`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId, type: "image", content: data.image_url })
-        });
-        setResults(prev => [...prev, { type: "image", url: data.image_url }]);
-        setBalance(b => b - 1);
-        setLoading(false);
-        return;
-      }
-
       // 如果是图生图，保存输入图片到数据库
       if (ossImageUrls.length > 0) {
         await fetch(`${BACKEND}/messages/save`, {

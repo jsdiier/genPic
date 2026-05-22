@@ -5,6 +5,7 @@ import sqlite3
 import requests
 import oss2
 import uuid
+import threading
 import os
 
 app = FastAPI()
@@ -174,6 +175,28 @@ class GPTGenerateRequest(BaseModel):
     size: str = "1024x1024"
     quality: str = "medium"
 
+import threading
+
+def run_gpt_generate(task_id, prompt, size, quality, clerk_user_id):
+    try:
+        image_url = gpt_generate(prompt, size, quality)
+        conn.execute(
+            "UPDATE tasks SET status='done', image_url=? WHERE task_id=?",
+            (image_url, task_id)
+        )
+        conn.execute(
+            "UPDATE users SET balance=balance-1 WHERE clerk_user_id=?",
+            (clerk_user_id,)
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"GPT generate error: {e}")
+        conn.execute(
+            "UPDATE tasks SET status='failed' WHERE task_id=?",
+            (task_id,)
+        )
+        conn.commit()
+
 @app.post("/gpt/generate")
 def gpt_generate_api(body: GPTGenerateRequest):
     user = conn.execute(
@@ -182,20 +205,41 @@ def gpt_generate_api(body: GPTGenerateRequest):
     if not user or user["balance"] < 1:
         raise HTTPException(status_code=402, detail="余额不足，请充值")
 
-    image_url = gpt_generate(body.prompt, body.size, body.quality)
-
     task_id = str(uuid.uuid4())
     conn.execute(
-        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status, image_url) VALUES (?, ?, ?, ?, ?)",
-        (task_id, body.clerk_user_id, body.prompt, "done", image_url)
-    )
-    conn.execute(
-        "UPDATE users SET balance=balance-1 WHERE clerk_user_id=?",
-        (body.clerk_user_id,)
+        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status) VALUES (?, ?, ?, ?)",
+        (task_id, body.clerk_user_id, body.prompt, "pending")
     )
     conn.commit()
 
-    return {"task_id": task_id, "image_url": image_url}
+    # 后台线程跑 GPT 生图
+    thread = threading.Thread(
+        target=run_gpt_generate,
+        args=(task_id, body.prompt, body.size, body.quality, body.clerk_user_id)
+    )
+    thread.start()
+
+    return {"task_id": task_id}
+
+def run_gpt_img2img(task_id, prompt, image_urls, size, quality, clerk_user_id):
+    try:
+        image_url = gpt_img2img(prompt, image_urls, size, quality)
+        conn.execute(
+            "UPDATE tasks SET status='done', image_url=? WHERE task_id=?",
+            (image_url, task_id)
+        )
+        conn.execute(
+            "UPDATE users SET balance=balance-1 WHERE clerk_user_id=?",
+            (clerk_user_id,)
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"GPT img2img error: {e}")
+        conn.execute(
+            "UPDATE tasks SET status='failed' WHERE task_id=?",
+            (task_id,)
+        )
+        conn.commit()
 
 @app.post("/gpt/img2img")
 async def gpt_img2img_api(
@@ -211,7 +255,7 @@ async def gpt_img2img_api(
     if not user or user["balance"] < 1:
         raise HTTPException(status_code=402, detail="余额不足，请充值")
 
-    # 先上传到 OSS 拿到 URL
+    # 先上传到 OSS
     image_urls = []
     for file in files:
         file_content = await file.read()
@@ -220,20 +264,21 @@ async def gpt_img2img_api(
         bucket.put_object(oss_key, file_content)
         image_urls.append(f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/{oss_key}")
 
-    image_url = gpt_img2img(prompt, image_urls, size, quality)
-
     task_id = str(uuid.uuid4())
     conn.execute(
-        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status, image_url) VALUES (?, ?, ?, ?, ?)",
-        (task_id, clerk_user_id, prompt, "done", image_url)
-    )
-    conn.execute(
-        "UPDATE users SET balance=balance-1 WHERE clerk_user_id=?",
-        (clerk_user_id,)
+        "INSERT INTO tasks (task_id, clerk_user_id, prompt, status) VALUES (?, ?, ?, ?)",
+        (task_id, clerk_user_id, prompt, "pending")
     )
     conn.commit()
 
-    return {"task_id": task_id, "image_url": image_url, "image_urls": image_urls}
+    # 后台线程跑 GPT 图生图
+    thread = threading.Thread(
+        target=run_gpt_img2img,
+        args=(task_id, prompt, image_urls, size, quality, clerk_user_id)
+    )
+    thread.start()
+
+    return {"task_id": task_id, "image_urls": image_urls}
 
 # =====================
 # 图生图接口
