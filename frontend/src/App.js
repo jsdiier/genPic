@@ -140,6 +140,9 @@ function App() {
     setUploadedFiles([]);
     setPreviewUrls([]);
 
+    // 立刻显示 prompt 气泡，不等网络请求
+    setResults(prev => [...prev, { type: "prompt", text: currentPrompt, images: currentPreviews }]);
+
     let sessionId = currentSessionId;
     if (!sessionId) {
       const title = currentPrompt.slice(0, 5);
@@ -160,7 +163,6 @@ function App() {
       body: JSON.stringify({ session_id: sessionId, type: "prompt", content: currentPrompt })
     });
 
-    setResults(prev => [...prev, { type: "prompt", text: currentPrompt, images: currentPreviews }]);
 
     let res;
     try {
