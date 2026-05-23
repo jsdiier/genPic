@@ -32,6 +32,7 @@ function App() {
     setCurrentSessionId(sessionId);
 
     // 加载 session 历史记录（包括 prompt 气泡）
+    // 加载 session 历史记录（包括 prompt 气泡）
     fetch(`${BACKEND}/messages/${sessionId}`)
       .then(res => res.json())
       .then(data => {
@@ -42,9 +43,11 @@ function App() {
           ...(m.type === "error" ? { text: m.content } : {}),
           ...(m.type === "input_images" ? { images: JSON.parse(m.content) } : {}),
         }));
-        setResults([...items, { type: "loading", taskId }]);
+        // 过滤掉已经完成的任务，只保留 pending 的
+        const filteredItems = items.filter(m => m.type !== "loading");
+        setResults([...filteredItems, { type: "loading", taskId }]);
+        setLoading(true);
       });
-
     setLoading(true);
 
     const timer = setInterval(async () => {
