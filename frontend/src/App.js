@@ -30,8 +30,22 @@ function App() {
     if (!pendingTask) return;
     const { taskId, sessionId } = JSON.parse(pendingTask);
     setCurrentSessionId(sessionId);
+
+    // 加载 session 历史记录（包括 prompt 气泡）
+    fetch(`${BACKEND}/messages/${sessionId}`)
+      .then(res => res.json())
+      .then(data => {
+        const items = data.messages.map(m => ({
+          type: m.type,
+          ...(m.type === "prompt" ? { text: m.content } : {}),
+          ...(m.type === "image" ? { url: m.content } : {}),
+          ...(m.type === "error" ? { text: m.content } : {}),
+          ...(m.type === "input_images" ? { images: JSON.parse(m.content) } : {}),
+        }));
+        setResults([...items, { type: "loading", taskId }]);
+      });
+
     setLoading(true);
-    setResults(prev => [...prev, { type: "loading", taskId }]);
 
     const timer = setInterval(async () => {
       const r = await fetch(`${BACKEND}/result/${taskId}`);
