@@ -32,7 +32,6 @@ function App() {
     setCurrentSessionId(sessionId);
 
     // 加载 session 历史记录（包括 prompt 气泡）
-    // 加载 session 历史记录（包括 prompt 气泡）
     fetch(`${BACKEND}/messages/${sessionId}`)
       .then(res => res.json())
       .then(data => {
@@ -247,6 +246,7 @@ function App() {
       const data = await res.json();
       const taskId = data.task_id;
       const ossImageUrls = data.image_urls || [];
+      console.log("task_id:", taskId, "data:", data);
 
       // 如果是图生图，保存输入图片到数据库
       if (ossImageUrls.length > 0) {
