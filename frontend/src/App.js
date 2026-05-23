@@ -161,7 +161,7 @@ function App() {
   };
 
   const handleSubmit = async () => {
-    if (!prompt.trim() || loading) return;
+    if (!prompt.trim()) return;
     if (balance <= 0) {
       setResults(prev => [...prev, { type: "error", text: "余额不足，请充值" }]);
       return;
@@ -559,9 +559,9 @@ function App() {
                 </div>
                 <button
                   onClick={handleSubmit}
-                  disabled={!prompt.trim() || loading}
+                  disabled={!prompt.trim()}
                   style={{
-                    background: prompt.trim() && !loading ? "#4f8ef7" : "#ddd",
+                    background: prompt.trim() ? "#4f8ef7" : "#ddd",
                     color: "white",
                     border: "none",
                     borderRadius: 8,
@@ -570,7 +570,7 @@ function App() {
                     fontSize: 14
                   }}
                 >
-                  {loading ? "生成中..." : "生成"}
+                  生成
                 </button>
               </div>
             </div>
