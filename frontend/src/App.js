@@ -263,6 +263,8 @@ function App() {
 
       sessionStorage.setItem("pendingTask", JSON.stringify({ taskId, sessionId }));
 
+      setResults(prev => [...prev, { type: "loading", taskId }]);
+
       const timer = setInterval(async () => {
         const r = await fetch(`${BACKEND}/result/${taskId}`);
         const d = await r.json();
