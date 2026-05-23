@@ -23,7 +23,7 @@ app.add_middleware(
 # =====================
 # 数据库初始化
 # =====================
-conn = sqlite3.connect("tasks.db", check_same_thread=False)
+conn = sqlite3.connect("/data/tasks.db", check_same_thread=False)
 conn.row_factory = sqlite3.Row
 conn.execute("""
     CREATE TABLE IF NOT EXISTS users (
