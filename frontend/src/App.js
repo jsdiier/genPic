@@ -24,6 +24,42 @@ function App() {
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
+  // 刷新后恢复轮询
+  useEffect(() => {
+    const pendingTask = sessionStorage.getItem("pendingTask");
+    if (!pendingTask) return;
+    const { taskId, sessionId } = JSON.parse(pendingTask);
+    setCurrentSessionId(sessionId);
+    setLoading(true);
+    setResults(prev => [...prev, { type: "loading", taskId }]);
+
+    const timer = setInterval(async () => {
+      const r = await fetch(`${BACKEND}/result/${taskId}`);
+      const d = await r.json();
+      if (d.status === "done") {
+        await fetch(`${BACKEND}/messages/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, type: "image", content: d.image_url })
+        });
+        setResults(prev => prev.map(item =>
+          item.taskId === taskId ? { type: "image", url: d.image_url } : item
+        ));
+        setBalance(b => b - 1);
+        setLoading(false);
+        sessionStorage.removeItem("pendingTask");
+        clearInterval(timer);
+      } else if (d.status === "failed") {
+        setResults(prev => prev.map(item =>
+          item.taskId === taskId ? { type: "error", text: "生成失败，请重试" } : item
+        ));
+        setLoading(false);
+        sessionStorage.removeItem("pendingTask");
+        clearInterval(timer);
+      }
+    }, 2000);
+  }, []);
+
   const loadSessions = useCallback(async () => {
     if (!user) return;
     const res = await fetch(`${BACKEND}/sessions/${user.id}`);
@@ -208,7 +244,7 @@ function App() {
         });
       }
 
-      setResults(prev => [...prev, { type: "loading", taskId }]);
+      sessionStorage.setItem("pendingTask", JSON.stringify({ taskId, sessionId }));
 
       const timer = setInterval(async () => {
         const r = await fetch(`${BACKEND}/result/${taskId}`);
@@ -224,12 +260,14 @@ function App() {
           ));
           setBalance(b => b - 1);
           setLoading(false);
+          sessionStorage.removeItem("pendingTask");
           clearInterval(timer);
         } else if (d.status === "failed") {
           setResults(prev => prev.map(item =>
             item.taskId === taskId ? { type: "error", text: "生成失败，请重试" } : item
           ));
           setLoading(false);
+          sessionStorage.removeItem("pendingTask");
           clearInterval(timer);
         }
       }, 2000);
