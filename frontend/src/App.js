@@ -495,7 +495,7 @@ function App() {
           </span>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 20%", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px clamp(12px, 10%, 20%)", display: "flex", flexDirection: "column", gap: 16 }}>
           {results.length === 0 && (
             <div style={{ textAlign: "center", color: "#999", marginTop: 80 }}>
               <p style={{ fontSize: 18 }}>输入文字生成图片，或上传图片进行风格转换</p>
@@ -557,7 +557,7 @@ function App() {
           <div ref={bottomRef} />
         </div>
 
-        <div style={{ padding: "12px 20%", background: "white", borderTop: "1px solid #eee" }}>
+        <div style={{ padding: "12px clamp(8px, 10%, 20%)", background: "white", borderTop: "1px solid #eee" }}>
           <div
             style={{
               border: `1.5px solid ${dragOver ? "#4f8ef7" : "#ddd"}`,
@@ -606,8 +606,8 @@ function App() {
               rows={2}
             />
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: 20, padding: 4 }}
@@ -618,7 +618,7 @@ function App() {
                 <select
                   value={aspectRatio}
                   onChange={e => setAspectRatio(e.target.value)}
-                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#666", cursor: "pointer" }}
+                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 4px", fontSize: 12, color: "#666", cursor: "pointer", maxWidth: 70 }}
                 >
                   <option value="auto">自动</option>
                   <option value="1:1">1:1</option>
@@ -633,7 +633,7 @@ function App() {
                 <select
                   value={resolution}
                   onChange={e => setResolution(e.target.value)}
-                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#666", cursor: "pointer" }}
+                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 4px", fontSize: 12, color: "#666", cursor: "pointer", maxWidth: 60 }}
                 >
                   <option value="1K">1K</option>
                   <option value="2K">2K</option>
@@ -642,7 +642,7 @@ function App() {
                 <select
                   value={model}
                   onChange={e => setModel(e.target.value)}
-                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#666", cursor: "pointer" }}
+                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 4px", fontSize: 12, color: "#666", cursor: "pointer", maxWidth: 110 }}
                 >
                   <option value="nano">NanoBanana 2</option>
                   <option value="gpt">GPT Image 2</option>
