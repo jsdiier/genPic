@@ -381,8 +381,7 @@ def gpt_generate(prompt: str, size: str = "1024x1024", quality: str = "medium") 
         model="gpt-image-2",
         prompt=prompt,
         size=size,
-        quality=quality,
-        response_format="b64_json"
+        quality=quality
     )
     image_bytes = base64.b64decode(result.data[0].b64_json)
     oss_key = f"gpt/{uuid.uuid4()}.jpg"
