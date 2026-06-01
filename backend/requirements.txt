@@ -4,3 +4,4 @@ requests
 oss2
 python-multipart
 openai
+PyJWT
