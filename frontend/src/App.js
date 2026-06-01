@@ -561,12 +561,14 @@ function App() {
 
           {/* 选项栏 */}
           <div style={{ display: "flex", gap: 6, marginBottom: 8, overflowX: "auto", paddingBottom: 2 }}>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4, padding: "5px 12px", border: "1px solid #ddd", borderRadius: 20, background: "white", fontSize: 13, color: "#555", cursor: "pointer", whiteSpace: "nowrap" }}
+            <select
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              style={{ flexShrink: 0, border: "1px solid #ddd", borderRadius: 20, padding: "5px 12px", fontSize: 13, color: "#555", cursor: "pointer", background: "white" }}
             >
-              📎 上传图片
-            </button>
+              <option value="nano">NanoBanana 2</option>
+              <option value="gpt">GPT Image-2</option>
+            </select>
             <select
               value={aspectRatio}
               onChange={e => setAspectRatio(e.target.value)}
@@ -591,14 +593,12 @@ function App() {
               <option value="2K">画质:2K</option>
               <option value="4K">画质:4K</option>
             </select>
-            <select
-              value={model}
-              onChange={e => setModel(e.target.value)}
-              style={{ flexShrink: 0, border: "1px solid #ddd", borderRadius: 20, padding: "5px 12px", fontSize: 13, color: "#555", cursor: "pointer", background: "white" }}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4, padding: "5px 12px", border: "1px solid #ddd", borderRadius: 20, background: "white", fontSize: 13, color: "#555", cursor: "pointer", whiteSpace: "nowrap" }}
             >
-              <option value="nano">Nano</option>
-              <option value="gpt">GPT</option>
-            </select>
+              📎 上传图片
+            </button>
           </div>
 
           <div
