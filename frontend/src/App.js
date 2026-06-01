@@ -131,7 +131,7 @@ function App() {
   const [balance, setBalance] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [hoveredSessionId, setHoveredSessionId] = useState(null);
@@ -558,6 +558,49 @@ function App() {
         </div>
 
         <div style={{ padding: "12px clamp(8px, 10%, 20%)", background: "white", borderTop: "1px solid #eee" }}>
+
+          {/* 选项栏 */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 8, overflowX: "auto", paddingBottom: 2 }}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4, padding: "5px 12px", border: "1px solid #ddd", borderRadius: 20, background: "white", fontSize: 13, color: "#555", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              📎 上传图片
+            </button>
+            <select
+              value={aspectRatio}
+              onChange={e => setAspectRatio(e.target.value)}
+              style={{ flexShrink: 0, border: "1px solid #ddd", borderRadius: 20, padding: "5px 12px", fontSize: 13, color: "#555", cursor: "pointer", background: "white" }}
+            >
+              <option value="auto">比例:自动</option>
+              <option value="1:1">1:1</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+              <option value="3:2">3:2</option>
+              <option value="2:3">2:3</option>
+              <option value="21:9">21:9</option>
+            </select>
+            <select
+              value={resolution}
+              onChange={e => setResolution(e.target.value)}
+              style={{ flexShrink: 0, border: "1px solid #ddd", borderRadius: 20, padding: "5px 12px", fontSize: 13, color: "#555", cursor: "pointer", background: "white" }}
+            >
+              <option value="1K">画质:1K</option>
+              <option value="2K">画质:2K</option>
+              <option value="4K">画质:4K</option>
+            </select>
+            <select
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              style={{ flexShrink: 0, border: "1px solid #ddd", borderRadius: 20, padding: "5px 12px", fontSize: 13, color: "#555", cursor: "pointer", background: "white" }}
+            >
+              <option value="nano">Nano</option>
+              <option value="gpt">GPT</option>
+            </select>
+          </div>
+
           <div
             style={{
               border: `1.5px solid ${dragOver ? "#4f8ef7" : "#ddd"}`,
@@ -590,7 +633,7 @@ function App() {
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={previewUrls.length > 0 ? "描述你想要的风格..." : "输入 prompt，或拖拽/粘贴图片进行图生图..."}
+              placeholder={previewUrls.length > 0 ? "描述你想要的风格..." : "输入 prompt 生成图片..."}
               style={{
                 width: "100%",
                 padding: "12px",
@@ -606,48 +649,7 @@ function App() {
               rows={2}
             />
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#999", fontSize: 20, padding: 4 }}
-                  title="上传图片（最多4张）"
-                >
-                  📎
-                </button>
-                <select
-                  value={aspectRatio}
-                  onChange={e => setAspectRatio(e.target.value)}
-                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 4px", fontSize: 12, color: "#666", cursor: "pointer", maxWidth: 70 }}
-                >
-                  <option value="auto">自动</option>
-                  <option value="1:1">1:1</option>
-                  <option value="16:9">16:9</option>
-                  <option value="9:16">9:16</option>
-                  <option value="4:3">4:3</option>
-                  <option value="3:4">3:4</option>
-                  <option value="3:2">3:2</option>
-                  <option value="2:3">2:3</option>
-                  <option value="21:9">21:9</option>
-                </select>
-                <select
-                  value={resolution}
-                  onChange={e => setResolution(e.target.value)}
-                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 4px", fontSize: 12, color: "#666", cursor: "pointer", maxWidth: 60 }}
-                >
-                  <option value="1K">1K</option>
-                  <option value="2K">2K</option>
-                  <option value="4K">4K</option>
-                </select>
-                <select
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "4px 4px", fontSize: 12, color: "#666", cursor: "pointer", maxWidth: 110 }}
-                >
-                  <option value="nano">NanoBanana 2</option>
-                  <option value="gpt">GPT Image 2</option>
-                </select>
-              </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 12px" }}>
               <button
                 onClick={handleSubmit}
                 disabled={!prompt.trim() || loading}
